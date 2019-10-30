@@ -1,0 +1,22 @@
+two basic django projects, one for the UI (ui_server) and one acting as the storage
+endpoint (storage_server)
+
+storage server will have multiple copies. will make those after finalising
+implementation of one of them.
+
+****key-value storage system description****
+both key and value are strings.
+user uses can add new entries or delete old entries.
+if same key is added twice, it is overwritten.
+
+****ui_server description*****
+basic UI, 3 options, get/insert/delete
+
+in the backend hash the key and determine wich storage server has the key. 
+send appropriate request to that server. get the response and display it to
+user.
+
+****storage_server description****
+store obtained object in local db. local clock also maintained. 
+exact interaction between the storage_server replicas TBD
+
