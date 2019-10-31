@@ -4,19 +4,87 @@ endpoint (storage_server)
 storage server will have multiple copies. will make those after finalising
 implementation of one of them.
 
-****key-value storage system description****
+*************************************************************
+***********key-value storage system description*************
+*************************************************************
+
 both key and value are strings.
-user uses can add new entries or delete old entries.
+user uses can add entries or delete old entries.
 if same key is added twice, it is overwritten.
 
-****ui_server description*****
+storage_servers will be hosted on localhost with fixed port numbers.
+eg. 10 servers can be hosted on ports 5000(server ID 0), 5010(server ID 1), 5020(server ID 2), 5030 ...
+
+*************************************************************
+************ui_server description**************
+*************************************************************
+
 basic UI, 3 options, get/insert/delete
 
-in the backend hash the key and determine wich storage server has the key. 
-send appropriate request to that server. get the response and display it to
-user.
+Section 4.5 of the paper says there are two ways of selecting a node to send request to,
+one is letting the load balancer do it, two is having a client side library which has
+information about dynamo system which selects the appropriate node. This selected node
+is the coordinator for the operation you are trying to do, i.e. it is in charge of replicating
+and it sends back success to client only when it gets sufficient OK response from replicated writes.
 
-****storage_server description****
-store obtained object in local db. local clock also maintained. 
-exact interaction between the storage_server replicas TBD
+Our implementation will have the ui_server (which is the "client") have code which allows it to select the
+correct node. But we will also use the client as the coordinator as per what sir said in my meeting with him.
+So since client has information about all storage nodes in the system, it can perform the replicated writes too.
+It returns success to the front end for user only if it is able to complete the replication.
+We are not using the storage node as a coordinator because it will lead to a lot of edge cases when handling node failure. This can be looked into later, let's start with client itself being the coordinator since sir said it's okay.
 
+We will use quorum read-writes N=3, W=2, R=2
+
+HANDLING WRITE (for port numbers in example)
+1) hash key using some standard function. Take hash valuemodulo 100, divide by 10 and round up. that gives server ID x.
+2) send write requests to x, x+1, x+2 (modulo number of servers in system)
+3) if 2 or more success, return success to user.
+4) if one or less success (i.e y fialures, where y>2), hand off to y other server.
+5) server to hand off data to can be determined as x+3,x+4 so on until x+N-1. Keep trying till 2 or more total success.
+
+HANDLING READ
+1) hash key using some standard function. Take hash valuemodulo 100, divide by 10 and round up. that gives server ID x.
+2) send read requests to x, x+1, x+2 (modulo number of servers in system)
+3) if less than 2 return, return both but some status saying read failed
+4) if at least 2 return, return all but also return the reconciled latest version.
+5) if there is conflict in vector clock, reconciled version will be concatenation of the value strings.
+
+*************************************************************
+**********storage_server description**************
+*************************************************************
+
+stores obtained object in local db. local clock also maintained.
+
+There is a table StorageServers which has IDs and IP+ports of storage_nodes in the system.
+
+There is one table, SelfID which holds just one item, ID of "this" storage_server, foreign key to StorageServer.
+
+Each server maintains a "ClockStamps" table, schema <server_id, time_stamp>. This table
+holds time stamps for each other storage server in our system. The local time stamps for each server are updated
+when it receives a message from that server (or from ui_server during write back for conflict resolution).
+This table basically acts as our vector clock.
+
+storage_server has two data tables, RealData and HandedData.
+
+RealData stores key values pairs sent to it by client. These items were meant to be sent to this node.
+<data_key, data_value, vector_clock>
+
+HANDLING WRITE
+Increment self time stamp in ClockStamps table by reading SelfID.
+receives <data_key, data_value> from json. Read time stamps for all servers and form a comma seperated string of stamps
+(this is the vector_clock that we will store with the object)
+store <data_key, data_value, vector_clock> in RealData
+
+HANDLING READ
+update self clock.
+read and return, ui_server will handle the rest.
+
+HandedData holds items which are handed off to this server by client cause original node was unreachable.
+<data_key, data_value, vector_clock, original_node_id>
+write handled same as RealData except the client also sends original_node_id.
+Periodically, this table needs to checked and for each original_node_id, any available data must be sent to
+original node. Seperate write endpoint can be made for this (i.e. not same endpoint that client will use)
+because there might be multiple entries being sent. If write is successful, then those entries can be removed.
+when sending data to original node, the vector_clock used will be the old one only. this is because updates are not sent
+to nodes holding handed data. So the copy of data in HandedData is old.
+Periodic running can be done using cron in ubuntu as per tushar.
