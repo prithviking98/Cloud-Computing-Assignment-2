@@ -49,6 +49,9 @@ HANDLING READ
 4) if at least 2 return, return all but also return the reconciled latest version.
 5) if there is conflict in vector clock, reconciled version will be concatenation of the value strings.
 
+one more endpoint is needed where storage server can contact ui_server to tell it that it has come back online.
+when ui_server gets this information, it sets server_down = false in its StorageServers table.
+
 *************************************************************
 **********storage_server description**************
 *************************************************************
