@@ -2,7 +2,7 @@ from django.db import models
 
 # Create your models here.
 
-class StorageServers(models.Model):
+class StorageServer(models.Model):
 	server_id = models.IntegerField() #integers, 0,1,2...
 	server_port = models.IntegerField()
 	#no server_down field, servers only notify ui_server
@@ -11,7 +11,7 @@ class StorageServers(models.Model):
 class SelfID(models.Model):
 	self_id = models.IntegerField()
 
-class ClockStamps(models.Model):
+class ClockStamp(models.Model):
 	server_id = models.IntegerField()
 	time_stamp = models.IntegerField(default = 0)
 

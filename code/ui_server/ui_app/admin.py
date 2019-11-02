@@ -2,4 +2,6 @@ from django.contrib import admin
 
 # Register your models here.
 
-from .models import StorageServers
+from .models import StorageServer
+
+admin.site.register(StorageServer)
