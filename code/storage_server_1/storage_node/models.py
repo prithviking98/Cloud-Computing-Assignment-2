@@ -13,7 +13,7 @@ class SelfID(models.Model):
 
 class ClockStamps(models.Model):
 	server_id = models.IntegerField()
-	time_stamp = models.IntegerField()
+	time_stamp = models.IntegerField(default = 0)
 
 class RealData(models.Model):
 	data_key = models.CharField(max_length = 100)
