@@ -30,3 +30,7 @@ class WriteRequest(models.Model):
 class GetRequest(models.Model):
 	data_key = models.CharField(max_length = 100)
 
+class HandoffRequest(models.Model):
+	data_key = models.CharField(max_length = 100)
+	data_value = models.CharField(max_length = 100)
+	original_node_id = models.IntegerField()
