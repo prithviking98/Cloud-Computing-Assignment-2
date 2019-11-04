@@ -29,15 +29,7 @@ for port in servers_port:
 
 servers_port_hash.sort()
 
-
-@api_view(['GET'])
-def read_handler(request):
-	try:
-		key = request.GET['key']
-	except:
-		return Response({'message':'Invalid data/url'}, status=400)
-
-	# key = data['key']
+def get_ptr(key):
 	hash_key = hash(key)
 
 	ptr = 4
@@ -46,7 +38,18 @@ def read_handler(request):
 			break
 		ptr = (ptr + 1)%5
 
-	x = ptr
+	return ptr
+
+
+@api_view(['GET'])
+def read_handler(request):
+	try:
+		key = request.GET['key']
+	except:
+		return Response({'message':'Invalid data/url'}, status=400)
+
+	
+	x = get_ptr(key)
 
 	count = 0
 	data = {}
@@ -117,15 +120,7 @@ def write_handler(request):
 		except:
 			return JsonResponse({'message':'Invalid data/url'}, status=400)
 
-	hash_key = hash(key)%100
-
-	ptr = 4
-	for port_tuple in servers_port_hash:
-		if port_tuple[0] > hash_key:
-			break
-		ptr = (ptr + 1)%5
-
-	x = ptr
+	x = get_ptr(key)
 
 	count = 0
 	data={}
@@ -220,7 +215,31 @@ def write_handler(request):
 	else:
 		return JsonResponse(data, status= 200)
 
+@api_view(['GET'])
+def del_handler(request):
+	
+	try:
+		key = request.GET['key']
+	except:
+		return Response({'message':'Invalid data/url'}, status=400)
 
+	x = get_ptr(key)
+	
+	try:
+		r = requests.delete("http://localhost:" + servers_port_hash[x][1] + "/storage_node/store/", json={'data_key':key})
+	except:
+		pass
+
+	try:
+		r = requests.delete("http://localhost:" + servers_port_hash[(x+1)%5][1] + "/storage_node/store/", json={'data_key':key})
+	except:
+		pass
+
+	try:
+		r = requests.delete("http://localhost:" + servers_port_hash[(x+2)%5][1] + "/storage_node/store/", json={'data_key':key})
+	except:
+		pass
+	
 def home_html(request):
 	return render(request, 'index.html')
 
@@ -231,3 +250,7 @@ def read_html(request):
 
 def write_html(request):
 	return render(request, 'write.html')
+
+def del_html(request):
+	return render(request, 'del.html')
+
