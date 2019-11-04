@@ -13,7 +13,7 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 import os
 
 #global constants
-SELF_ID = 1
+SELF_ID = 2
 NUM_NODES = 5
 NODE_IDS = [1,2,3,4,5]
 
