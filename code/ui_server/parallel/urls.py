@@ -11,4 +11,5 @@ urlpatterns = [
 	path('del/',views.del_handler,name='del_handler'),
 	path('read_html/', views.read_html, name='read_html'),
 	path('write_html/', views.write_html, name='write_html'),
+	path('del_html/',views.del_html,name='del_html'),
 ]
