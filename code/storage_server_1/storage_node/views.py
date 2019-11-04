@@ -130,7 +130,10 @@ def handoff_return_trigger(request):
 		serializers = HandedDataSerializer(data_set, many=True)
 		jlist = json.dumps({'return_list':serializers.data})
 		URL = 'http://localhost:'+str(StorageServer.objects.get(server_id = id).server_port)+'/storage_node/handoff_return/'
-		response = requests.put(URL, data = jlist)
+		try:
+			response = requests.put(URL, data = jlist)
+		except:
+			print("Unable to return handoff data: Server {} still down"%id)
 		if response.status_code == 200:
 			for data in data_set:
 				data.delete()

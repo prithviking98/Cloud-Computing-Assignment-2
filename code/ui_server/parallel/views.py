@@ -51,31 +51,50 @@ def read_handler(request):
 	count = 0
 	data = {}
 
-	r = requests.get("http://localhost:" + servers_port_hash[x][1] + "/storage_node/store/", json={'data_key':key})
-	if r.status_code==200:
-		try:
-			data = r.json()
-			count = count+1
-		except:
-			pass
-
-	r = requests.get("http://localhost:" + servers_port_hash[(x+1)%5][1] + "/storage_node/store/", json={'data_key':key})
-	if r.status_code==200:
-		try:
-			data = r.json()
-			count = count+1
-		except:
-			pass
+	try:
+		r = requests.get("http://localhost:" + servers_port_hash[x][1] + "/storage_node/store/", json={'data_key':key})
+		if r.status_code==200:
+			try:
+				data[x] = r.json()
+				count = count+1
+			except:
+				pass
+		elif r.status_code==404:
+			data[x] = 'Key not found at this server'
+	except:
+		data[x] = 'Server Down'
 
 
-	r = requests.get("http://localhost:" + servers_port_hash[(x+2)%5][1] + "/storage_node/store/", json={'data_key':key})
 
-	if r.status_code==200:
-		try:
-			data = r.json()
-			count = count+1
-		except:
-			pass
+	try:
+		r = requests.get("http://localhost:" + servers_port_hash[(x+1)%5][1] + "/storage_node/store/", json={'data_key':key})
+		if r.status_code==200:
+			try:
+				data[(x+1)%5] = r.json()
+				count = count+1
+			except:
+				pass
+		elif r.status_code==404:
+			data[(x+1)%5] = 'Key not found at this server'
+	except:
+		data[(x+1)%5] = 'Server Down'
+
+
+
+	try:
+		r = requests.get("http://localhost:" + servers_port_hash[(x+2)%5][1] + "/storage_node/store/", json={'data_key':key})
+		if r.status_code==200:
+			try:
+				data[(x+2)%5] = r.json()
+				count = count+1
+			except:
+				pass
+		elif r.status_code==404:
+			data[(x+2)%5] = 'Key not found at this server'
+	except:
+		data[(x+2)%5] = 'Server Down'
+
+
 
 	if(count < 2):
 		return Response(data,status = 400)
@@ -110,49 +129,88 @@ def write_handler(request):
 
 	count = 0
 	data={}
-	r = requests.put("http://localhost:" + servers_port_hash[x][1] + "/storage_node/store/", json={'data_key':key, 'data_value':value})
-	print(r.status_code)
-	if r.status_code==200:
-		try:
-			data = r.json()
-			count = count+1
+	failed = []
+	try:
+		r = requests.put("http://localhost:" + servers_port_hash[(x+0)%5][1] + "/storage_node/store/", json={'data_key':key, 'data_value':value})
 
-		except:
-			pass
+		if r.status_code==200:
+			try:
+				data[(x+0)%5]= r.json()
+				count = count+1
 
-	r = requests.put("http://localhost:" + servers_port_hash[(x+1)%5][1] + "/storage_node/store/", json={'data_key':key, 'data_value':value})
-	print(r.status_code)
-	if r.status_code==200:
-		try:
-			data = r.json()
-			count = count+1
-		except:
-			pass
+			except:
+				pass
+	except:
+		failed.append((x+0)%5)
+		data[(x+0)%5] = 'Server Down'
 
 
-	r = requests.put("http://localhost:" + servers_port_hash[(x+2)%5][1] + "/storage_node/store/", json={'data_key':key, 'data_value':value})
-	print(r.status_code)
-	if r.status_code==200:
-		try:
-			data = r.json()
-			count = count+1
-		except:
-			pass
+
+
+	try:
+		r = requests.put("http://localhost:" + servers_port_hash[(x+1)%5][1] + "/storage_node/store/", json={'data_key':key, 'data_value':value})
+
+		if r.status_code==200:
+			try:
+				data[(x+1)%5]= r.json()
+				count = count+1
+
+			except:
+				pass
+	except:
+		failed.append((x+1)%5)
+		data[(x+1)%5] = 'Server Down'
+
+
+	try:
+		r = requests.put("http://localhost:" + servers_port_hash[(x+2)%5][1] + "/storage_node/store/", json={'data_key':key, 'data_value':value})
+
+		if r.status_code==200:
+			try:
+				data[(x+2)%5]= r.json()
+				count = count+1
+
+			except:
+				pass
+	except:
+		failed.append((x+2)%5)
+		data[(x+2)%5] = 'Server Down'
 
 
 	if(count < 2) :
-		ptr = (x+3)%5
+		ptr1 = (x+3)%5
+		ptr2 = (x+4)%5
+		for failed_node in failed:
 
-		while ptr != x and count < 2:
-			r = requests.put("http://localhost:" + servers_port_hash[ptr%5][1] + "/storage_node/store/", json={'data_key':key, 'data_value':value})
-			ptr = (ptr+1)%5
+			try:
+				r = requests.put("http://localhost:" + servers_port_hash[ptr1][1] + "/storage_node/handoff/", json={'original_node_id':failed_node, 'data_key':key, 'data_value':value})
 
-			if r.status_code==200:
-				try:
-					data = r.json()
-					count = count+1
-				except:
-					pass
+				if r.status_code==200:
+					try:
+						data['handoff_' + str(ptr1)+'__failed_'+str(failed_node)]= r.json()
+						count = count+1
+
+					except:
+						pass
+			except:
+				data['handoff_' + str(ptr1)] = 'Server Down'
+
+
+
+			try:
+				r = requests.put("http://localhost:" + servers_port_hash[ptr2][1] + "/storage_node/handoff/", json={'original_node_id':failed_node, 'data_key':key, 'data_value':value})
+
+				if r.status_code==200:
+					try:
+						data['handoff_' + str(ptr2)+'__failed_'+str(failed_node)]= r.json()
+						count = count+1
+
+					except:
+						pass
+			except:
+				data['handoff_' + str(ptr2)] = 'Server Down'
+
+
 
 
 		if count < 2 :
