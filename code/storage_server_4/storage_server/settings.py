@@ -13,8 +13,8 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 import os
 
 #global constants
-SELF_ID = 1
-NUM_NODES = 2
+SELF_ID = 4
+NUM_NODES = 5
 NODE_IDS = [1,2,3,4,5]
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
