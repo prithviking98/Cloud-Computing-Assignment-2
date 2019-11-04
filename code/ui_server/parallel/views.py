@@ -20,7 +20,7 @@ from django.views.decorators.csrf import csrf_exempt
 READ_URL = 'https://bits-oasis.org/ems/events'
 WRITE_URL = 'https://bits-oasis.org/ems/events'
 
-servers_port = ['5000','5010','5020','5030','5040']
+servers_port = ['8010','8020','8030','8040', '8050']
 
 servers_port_hash = []
 
@@ -35,11 +35,11 @@ def read_handler(request):
 	try:
 		key = request.GET['key']
 	except:
-		return Response({'message':'Invalid data/url'}, status=400) 
+		return Response({'message':'Invalid data/url'}, status=400)
 
 	# key = data['key']
-	hash_key = hash(key)	
-	
+	hash_key = hash(key)
+
 	ptr = 4
 	for port_tuple in servers_port_hash:
 		if port_tuple[0] > hash_key:
@@ -51,7 +51,7 @@ def read_handler(request):
 	count = 0
 	data = {}
 
-	r = requests.get("http://localhost:" + servers_port_hash[x][1] + "/storage_node/store", {'key':key})
+	r = requests.get("http://localhost:" + servers_port_hash[x][1] + "/storage_node/store/", json={'data_key':key})
 	if r.status_code==200:
 		try:
 			data = r.json()
@@ -59,7 +59,7 @@ def read_handler(request):
 		except:
 			pass
 
-	r = requests.get("http://localhost:" + servers_port_hash[(x+1)%5][1] + "/storage_node/store", {'key':key})
+	r = requests.get("http://localhost:" + servers_port_hash[(x+1)%5][1] + "/storage_node/store/", json={'data_key':key})
 	if r.status_code==200:
 		try:
 			data = r.json()
@@ -68,8 +68,8 @@ def read_handler(request):
 			pass
 
 
-	r = requests.get("http://localhost:" + servers_port_hash[(x+2)%5][1] + "/storage_node/store", {'key':key})
-	
+	r = requests.get("http://localhost:" + servers_port_hash[(x+2)%5][1] + "/storage_node/store/", json={'data_key':key})
+
 	if r.status_code==200:
 		try:
 			data = r.json()
@@ -78,7 +78,6 @@ def read_handler(request):
 			pass
 
 	if(count < 2):
-		print
 		return Response(data,status = 400)
 
 	return Response(data, status=200)
@@ -88,7 +87,7 @@ def read_handler(request):
 @csrf_exempt
 def write_handler(request):
 	# print(request.data)
-	
+
 	try:
 		key = request.POST['key']
 		value = request.POST['value']
@@ -100,7 +99,7 @@ def write_handler(request):
 			return JsonResponse({'message':'Invalid data/url'}, status=400)
 
 	hash_key = hash(key)%100
-	
+
 	ptr = 4
 	for port_tuple in servers_port_hash:
 		if port_tuple[0] > hash_key:
@@ -110,8 +109,19 @@ def write_handler(request):
 	x = ptr
 
 	count = 0
+	data={}
+	r = requests.put("http://localhost:" + servers_port_hash[x][1] + "/storage_node/store/", json={'data_key':key, 'data_value':value})
+	print(r.status_code)
+	if r.status_code==200:
+		try:
+			data = r.json()
+			count = count+1
 
-	r = requests.put("http://localhost:" + servers_port_hash[x][1] + "/storage_node/store", {'key':key, 'value':value})
+		except:
+			pass
+
+	r = requests.put("http://localhost:" + servers_port_hash[(x+1)%5][1] + "/storage_node/store/", json={'data_key':key, 'data_value':value})
+	print(r.status_code)
 	if r.status_code==200:
 		try:
 			data = r.json()
@@ -119,17 +129,9 @@ def write_handler(request):
 		except:
 			pass
 
-	r = requests.put("http://localhost:" + servers_port_hash[(x+1)%5][1] + "/storage_node/store", {'key':key, 'value':value})
-	if r.status_code==200:
-		try:
-			data = r.json()
-			count = count+1
-		except:
-			pass
 
-
-	r = requests.put("http://localhost:" + servers_port_hash[(x+2)%5][1] + "/storage_node/store", {'key':key, 'value':value})
-	
+	r = requests.put("http://localhost:" + servers_port_hash[(x+2)%5][1] + "/storage_node/store/", json={'data_key':key, 'data_value':value})
+	print(r.status_code)
 	if r.status_code==200:
 		try:
 			data = r.json()
@@ -141,10 +143,10 @@ def write_handler(request):
 	if(count < 2) :
 		ptr = (x+3)%5
 
-		while ptr != x and count < 2: 
-			r = requests.put("http://localhost:" + servers_port_hash[ptr%5][1] + "/storage_node/store", {'key':key})
+		while ptr != x and count < 2:
+			r = requests.put("http://localhost:" + servers_port_hash[ptr%5][1] + "/storage_node/store/", json={'data_key':key, 'data_value':value})
 			ptr = (ptr+1)%5
-			
+
 			if r.status_code==200:
 				try:
 					data = r.json()
@@ -153,7 +155,7 @@ def write_handler(request):
 					pass
 
 
-		if count < 2 :	
+		if count < 2 :
 			return JsonResponse(data,status = 400)
 		else:
 			return JsonResponse(data,status = 200)
